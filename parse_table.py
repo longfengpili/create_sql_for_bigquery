@@ -14,6 +14,7 @@ class create_for_bigquery(object):
         self.event_column_sort = config.event_column_sort
         self.change_column_type = config.change_column_type
         self.fliter_fields = config.fliter_fields
+        self.fliter_event_name = config.fliter_event_name
         self.base_fields_first = config.base_fields_first
         self.base_fields_second = config.base_fields_second
         self.filepath = config.filepath
@@ -45,6 +46,7 @@ class create_for_bigquery(object):
             else:
                 non_in_column.append(column)
         table_column_sorted = [table_column_sort[key] for key in sorted(table_column_sort.keys())]
+        # print(table_column_sorted)
         return table_column_sorted,event_name
     
     def key_value(self,key,value_type,target_type='string'):
@@ -61,39 +63,40 @@ class create_for_bigquery(object):
         table_column_info,event_name = self.sort_column(df)
         select_list = []
         for i in table_column_info:
-            print(i)
+            # print(i)
             select_list.append(self.key_value(i[0],i[1]))
         table_column = ",\n".join(select_list)
         return table_column,event_name
 
     def create_table(self,df):
         table_column,event_name = self.table_column(df)
-        # print(event_name)
-        # print(table_column)
-        if table_column != '':
-            
-            sql_for_create = '''
-            --{0}.{5}
-            create table raw_data_{0}.{1} as
-            select {2},
-            {3},
-            {4}
-            from {6} 
-            where event_name = '{5}'
-            ;
-            '''.format(self.project,self.table,self.base_fields_first,table_column,
-                        self.base_fields_second,event_name,self.table)
+        print(event_name)
+        print(table_column)
+        if event_name in self.fliter_event_name:
+            sql_for_create = ''
         else:
-            sql_for_create = '''
-            --{0}.{5}
-            create table raw_data_{0}.{1} as
-            select {2},
-            {4}
-            from {6} 
-            where event_name = '{5}'
-            ;
-            '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name,self.table)
-
+            if table_column != '':            
+                sql_for_create = '''
+                --{0}.{5}
+                create table raw_data_{0}.{1} as
+                select {2},
+                {3},
+                {4}
+                from {6} 
+                where event_name = '{5}'
+                ;
+                '''.format(self.project,self.table,self.base_fields_first,table_column,
+                            self.base_fields_second,event_name,self.table)
+            else:
+                sql_for_create = '''
+                --{0}.{5}
+                create table raw_data_{0}.{1} as
+                select {2},
+                {4}
+                from {6} 
+                where event_name = '{5}'
+                ;
+                '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name,self.table)
         return re.sub('    ','',sql_for_create)
 
 if __name__ == '__main__':
@@ -106,12 +109,13 @@ if __name__ == '__main__':
     f = open(filepath,'r')
     data = pd.read_csv(f,index_col=['event_name'])
     f.close()
-    # data = data.loc['ad_close',:]
 
+    # data = data.loc['ad_close',:]
     # print(c.sort_column(data))
     
     for i in data.index.unique().values:
-        result = data.loc[i,:].copy()
+        result = data.loc[[i]].copy()
+        # print(result)
         with open(createpath,'a',encoding='utf-8') as f:
             f.write(c.create_table(result))
 
