@@ -12,11 +12,13 @@ class create_for_bigquery(object):
         self.project = config.project_name
         self.table = config.table_name
         self.event_column_sort = config.event_column_sort
+        self.change_column_type = config.change_column_type
         self.fliter_fields = config.fliter_fields
         self.base_fields_first = config.base_fields_first
         self.base_fields_second = config.base_fields_second
         self.filepath = config.filepath
         self.createpath = config.createpath
+    
 
     def _modify_column(self,column_name):
         pattern="[A-Z]"
@@ -46,6 +48,11 @@ class create_for_bigquery(object):
         return table_column_sorted,event_name
     
     def key_value(self,key,value_type,target_type='string'):
+        if key in self.change_column_type.keys():
+            target_type = self.change_column_type[key]
+        # else:
+        #     change_target_type = target_type
+
         value = "(select cast(value.{1} as {3}) from unnest(event_params) where key = '{0}') as {2}".format(
                 key,value_type,self._modify_column(key),target_type)
         return value
@@ -54,6 +61,7 @@ class create_for_bigquery(object):
         table_column_info,event_name = self.sort_column(df)
         select_list = []
         for i in table_column_info:
+            print(i)
             select_list.append(self.key_value(i[0],i[1]))
         table_column = ",\n".join(select_list)
         return table_column,event_name
