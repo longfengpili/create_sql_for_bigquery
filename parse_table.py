@@ -53,8 +53,10 @@ class create_for_bigquery(object):
         table_column_sorted = [table_column_sort[key] for key in sorted(table_column_sort.keys())]
         # print(table_column_sorted)
         for i in self.column_fixed:
-            if i not in table_column_sorted:
-                table_column_sorted.insert(0,i)
+            if i in table_column_sorted:
+                table_column_sorted.pop(table_column_sorted.index(i))
+            
+            table_column_sorted.insert(0,i)
 
         # print('{}-{}'.format(event_name,table_column_sorted))
 
