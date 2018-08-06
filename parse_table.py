@@ -91,7 +91,7 @@ class create_for_bigquery(object):
             if table_column != '':            
                 sql_for_create = '''
                 --{0}.{5}
-                create table raw_data_{0}.{5} as
+                create table `word-view.raw_data_{0}.{5}` as
                 select {2},
                 {3},
                 {4}
@@ -103,7 +103,7 @@ class create_for_bigquery(object):
             else:
                 sql_for_create = '''
                 --{0}.{5}
-                create table raw_data_{0}.{5} as
+                create `word-view.raw_data_{0}.{5}` as
                 select {2},
                 {4}
                 from {6} 
@@ -124,7 +124,7 @@ class create_for_bigquery(object):
             if table_column != '':            
                 sql_for_insert = '''
                 --{0}.{5}
-                merge raw_data_{0}.{5} T
+                merge `word-view.raw_data_{0}.{5}` T
                 using
                 (select {2},
                 {3},
@@ -148,7 +148,7 @@ class create_for_bigquery(object):
             else:
                 sql_for_insert = '''
                 --{0}.{5}
-                merge raw_data_{0}.{5} T
+                merge `word-view.raw_data_{0}.{5}` T
                 using
                 (select {2},
                 {4}
