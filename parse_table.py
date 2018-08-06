@@ -16,9 +16,11 @@ class create_for_bigquery(object):
         self.fliter_fields = config.fliter_fields
         self.fliter_event_name = config.fliter_event_name
         self.base_fields_first = config.base_fields_first
+        self.base_fields_first_no_function = config.base_fields_first_no_function
         self.base_fields_second = config.base_fields_second
         self.filepath = config.filepath
         self.createpath = config.createpath
+        self.insertpath = config.insertpath
     
 
     def _modify_column(self,column_name):
@@ -70,8 +72,8 @@ class create_for_bigquery(object):
 
     def create_table(self,df):
         table_column,event_name = self.table_column(df)
-        print(event_name)
-        print(table_column)
+        # print(event_name)
+        # print(table_column)
         if event_name in self.fliter_event_name:
             sql_for_create = ''
         else:
@@ -99,6 +101,63 @@ class create_for_bigquery(object):
                 '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name,self.table)
         return re.sub('    ','',sql_for_create)
 
+    def insert_table(self,df):
+        table_column,event_name = self.table_column(df)
+        table_column_info,_ = self.sort_column(df)
+        columns_name = ','.join([self._modify_column(table_column[0]) for table_column in table_column_info])
+        # print(event_name)
+        # print(columns_name)
+        if event_name in self.fliter_event_name:
+            sql_for_insert = ''
+        else:
+            if table_column != '':            
+                sql_for_insert = '''
+                --{0}.{5}
+                merge {0}.{5} T
+                using
+                (select {2},
+                {3},
+                {4}
+                from {6} 
+                where event_name = {5}) S
+                on T.user_pseudo_id = S.user_pseudo_id and T.app_info.id = S.app_info.id and T.platform = S.platform
+                and T.event_name = S.event_name and T.event_timestamp = S.event_timestamp
+                when not matched then
+                insert
+                ({8},
+                {7},
+                {4})
+                values
+                ({8},
+                {7},
+                {4})
+                ;
+                '''.format(self.project,self.table,self.base_fields_first,table_column,
+                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function)
+            else:
+                sql_for_insert = '''
+                --{0}.{5}
+                merge {0}.{5} T
+                using
+                (select {2},
+                {4}
+                from {6} 
+                where event_name = {5}) S
+                on T.user_pseudo_id = S.user_pseudo_id and T.app_info.id = S.app_info.id and T.platform = S.platform
+                and T.event_name = S.event_name and T.event_timestamp = S.event_timestamp
+                when not matched then
+                insert
+                ({8},
+                {4})
+                values
+                ({8},
+                {4})
+                ;
+                '''.format(self.project,self.table,self.base_fields_first,table_column,
+                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function)
+        return re.sub('    ','',sql_for_insert)
+
+
 if __name__ == '__main__':
     
     non_in_column = []
@@ -106,18 +165,22 @@ if __name__ == '__main__':
     c = create_for_bigquery()
     filepath = c.filepath
     createpath = c.createpath
+    insertpath = c.insertpath
     f = open(filepath,'r')
     data = pd.read_csv(f,index_col=['event_name'])
     f.close()
 
     # data = data.loc['ad_close',:]
-    # print(c.sort_column(data))
+    # print(c.insert_table(data))
     
     for i in data.index.unique().values:
         result = data.loc[[i]].copy()
         # print(result)
         with open(createpath,'a',encoding='utf-8') as f:
             f.write(c.create_table(result))
+        
+        with open(insertpath,'a',encoding='utf-8') as f:
+            f.write(c.insert_table(result))
 
     with open(createpath,'a',encoding='utf-8') as f:
             f.write('\n出现额外的列名{}'.format(non_in_column))
