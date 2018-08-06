@@ -91,7 +91,7 @@ class create_for_bigquery(object):
             if table_column != '':            
                 sql_for_create = '''
                 --{0}.{5}
-                create table raw_data_{0}.{1} as
+                create table raw_data_{0}.{5} as
                 select {2},
                 {3},
                 {4}
@@ -103,7 +103,7 @@ class create_for_bigquery(object):
             else:
                 sql_for_create = '''
                 --{0}.{5}
-                create table raw_data_{0}.{1} as
+                create table raw_data_{0}.{5} as
                 select {2},
                 {4}
                 from {6} 
@@ -124,13 +124,13 @@ class create_for_bigquery(object):
             if table_column != '':            
                 sql_for_insert = '''
                 --{0}.{5}
-                merge {0}.{5} T
+                merge raw_data_{0}.{5} T
                 using
                 (select {2},
                 {3},
                 {4}
                 from {6} 
-                where event_name = {5}) S
+                where event_name = '{5}') S
                 on T.user_pseudo_id = S.user_pseudo_id and T.app_info.id = S.app_info.id and T.platform = S.platform
                 and T.event_name = S.event_name and T.event_timestamp = S.event_timestamp
                 when not matched then
@@ -148,12 +148,12 @@ class create_for_bigquery(object):
             else:
                 sql_for_insert = '''
                 --{0}.{5}
-                merge {0}.{5} T
+                merge raw_data_{0}.{5} T
                 using
                 (select {2},
                 {4}
                 from {6} 
-                where event_name = {5}) S
+                where event_name = '{5}') S
                 on T.user_pseudo_id = S.user_pseudo_id and T.app_info.id = S.app_info.id and T.platform = S.platform
                 and T.event_name = S.event_name and T.event_timestamp = S.event_timestamp
                 when not matched then
