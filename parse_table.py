@@ -46,8 +46,10 @@ class create_for_bigquery(object):
                 table_column_sort[columns_sort[column]] = [column,column_type]
             elif column in self.fliter_fields:
                 pass
-            else:
+            elif column not in non_in_column:
                 non_in_column.append(column)
+            else:
+                pass
         table_column_sorted = [table_column_sort[key] for key in sorted(table_column_sort.keys())]
         # print(table_column_sorted)
         for i in self.column_fixed:
