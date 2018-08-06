@@ -11,6 +11,7 @@ class create_for_bigquery(object):
     def __init__(self):
         self.project = config.project_name
         self.table = config.table_name
+        self.column_fixed = config.column_fixed
         self.event_column_sort = config.event_column_sort
         self.change_column_type = config.change_column_type
         self.fliter_fields = config.fliter_fields
@@ -49,6 +50,12 @@ class create_for_bigquery(object):
                 non_in_column.append(column)
         table_column_sorted = [table_column_sort[key] for key in sorted(table_column_sort.keys())]
         # print(table_column_sorted)
+        for i in self.column_fixed:
+            if i not in table_column_sorted:
+                table_column_sorted.insert(0,i)
+
+        # print('{}-{}'.format(event_name,table_column_sorted))
+
         return table_column_sorted,event_name
     
     def key_value(self,key,value_type,target_type='string'):
