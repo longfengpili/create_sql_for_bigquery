@@ -5,7 +5,7 @@ import re
 sys.path.append('..')
 import config_for_bigquery as config
 
-
+non_in_column = []
 class create_for_bigquery(object):
 
     def __init__(self):
@@ -79,6 +79,13 @@ class create_for_bigquery(object):
             # print(i)
             select_list.append(self.key_value(i[0],i[1]))
         table_column = ",\n".join(select_list)
+        
+        column_l = re.findall(r'\) as (\w*)',table_column)
+        for i in column_l:
+            if column_l.count(i) > 1:
+                for j in range(column_l.count(i)):
+                    table_column = re.sub('\) as {}(?!\d)'.format(i),lambda i:i.group(0)+'{}'.format(j),table_column,1)
+                    
         return table_column,event_name
 
     def create_table(self,df):
@@ -171,7 +178,7 @@ class create_for_bigquery(object):
 
 if __name__ == '__main__':
     
-    non_in_column = []
+    
 
     c = create_for_bigquery()
     filepath = c.filepath
