@@ -121,9 +121,8 @@ class create_for_bigquery(object):
 
     def insert_table(self,df):
         table_column,event_name = self.table_column(df)
-        table_column_info,_ = self.sort_column(df)
-        columns_name = ','.join([self._modify_column(table_column[0]) for table_column in table_column_info])
-        # print(event_name)
+        # print(table_column)
+        columns_name = ','.join(re.findall('\) as (\w*)',table_column))
         # print(columns_name)
         if event_name in self.fliter_event_name:
             sql_for_insert = ''
