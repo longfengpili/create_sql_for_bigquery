@@ -84,7 +84,7 @@ class create_for_bigquery(object):
         for i in column_l:
             if column_l.count(i) > 1:
                 for j in range(column_l.count(i)):
-                    table_column = re.sub('\) as {}(?!\d)'.format(i),lambda i:i.group(0)+'{}'.format(j),table_column,1)
+                    table_column = re.sub('\) as {}(?![0-9_])'.format(i),lambda i:i.group(0)+'_{}'.format(j),table_column,1)
                     
         return table_column,event_name
 
