@@ -29,6 +29,10 @@ class create_for_bigquery(object):
         column_name=re.sub(pattern,lambda x:"_"+x.group(0).lower(),column_name)
         return column_name
     
+    def pop_prefix(self,columns):
+        columns=re.sub('\w*?\.',lambda x:'',columns)
+        return columns
+    
     def sort_column(self,df):
         table_column_info = df.values
         event_name = df.index.unique().values[0]
@@ -88,7 +92,7 @@ class create_for_bigquery(object):
                     
         return table_column,event_name
 
-    def create_table(self,df):
+    def raw_data_create_table(self,df):
         table_column,event_name = self.table_column(df)
         # print(event_name)
         # print(table_column)
@@ -98,7 +102,10 @@ class create_for_bigquery(object):
             if table_column != '':            
                 sql_for_create = '''
                 --{0}.{5}
-                create table `word-view.raw_data_{0}.{5}` as
+                create table `word-view.raw_data_{0}.{5}`
+                partition by event_date
+                cluster by user_pseudo_id,id,platform,city
+                as
                 select {2},
                 {3},
                 {4}
@@ -110,7 +117,10 @@ class create_for_bigquery(object):
             else:
                 sql_for_create = '''
                 --{0}.{5}
-                create `word-view.raw_data_{0}.{5}` as
+                create `word-view.raw_data_{0}.{5}`
+                partition by event_date
+                cluster by user_pseudo_id,id,platform,city
+                as
                 select {2},
                 {4}
                 from {6} 
@@ -119,7 +129,7 @@ class create_for_bigquery(object):
                 '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name,self.table)
         return re.sub('    ','',sql_for_create)
 
-    def insert_table(self,df):
+    def raw_data_insert_table(self,df):
         table_column,event_name = self.table_column(df)
         # print(table_column)
         columns_name = ','.join(re.findall('\) as (\w*)',table_column))
@@ -137,7 +147,7 @@ class create_for_bigquery(object):
                 {4}
                 from {6} 
                 where event_name = '{5}') S
-                on T.user_pseudo_id = S.user_pseudo_id and T.app_info.id = S.app_info.id and T.platform = S.platform
+                on T.user_pseudo_id = S.user_pseudo_id and T.id = S.id and T.platform = S.platform
                 and T.event_name = S.event_name and T.event_timestamp = S.event_timestamp
                 when not matched then
                 insert
@@ -160,7 +170,7 @@ class create_for_bigquery(object):
                 {4}
                 from {6} 
                 where event_name = '{5}') S
-                on T.user_pseudo_id = S.user_pseudo_id and T.app_info.id = S.app_info.id and T.platform = S.platform
+                on T.user_pseudo_id = S.user_pseudo_id and T.id = S.id and T.platform = S.platform
                 and T.event_name = S.event_name and T.event_timestamp = S.event_timestamp
                 when not matched then
                 insert
@@ -174,11 +184,16 @@ class create_for_bigquery(object):
                             self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function)
         return re.sub('    ','',sql_for_insert)
 
+    def report_create_table(self,df):
+        table_column,event_name = self.table_column(df)
+        # print(table_column)
+        columns_name = ','.join(re.findall('\) as (\w*)',table_column))
+        columns_name = ','.join([self.base_fields_first_no_function,columns_name,self.base_fields_second])
+
+        return columns_name
 
 if __name__ == '__main__':
     
-    
-
     c = create_for_bigquery()
     filepath = c.filepath
     createpath = c.createpath
@@ -194,10 +209,10 @@ if __name__ == '__main__':
         result = data.loc[[i]].copy()
         # print(result)
         with open(createpath,'a',encoding='utf-8') as f:
-            f.write(c.create_table(result))
+            f.write(c.raw_data_create_table(result))
         
         with open(insertpath,'a',encoding='utf-8') as f:
-            f.write(c.insert_table(result))
+            f.write(c.raw_data_insert_table(result))
 
     with open(createpath,'a',encoding='utf-8') as f:
             f.write('\n出现额外的列名{}'.format(non_in_column))
