@@ -29,7 +29,7 @@ class create_for_bigquery(object):
         column_name=re.sub(pattern,lambda x:"_"+x.group(0).lower(),column_name)
         return column_name
     
-    def pop_prefix(self,columns):
+    def _pop_prefix(self,columns):
         columns=re.sub('\w*?\.',lambda x:'',columns)
         return columns
     
@@ -109,11 +109,11 @@ class create_for_bigquery(object):
                 select {2},
                 {3},
                 {4}
-                from {6} 
+                from {1} 
                 where event_name = '{5}'
                 ;
                 '''.format(self.project,self.table,self.base_fields_first,table_column,
-                            self.base_fields_second,event_name,self.table)
+                            self.base_fields_second,event_name)
             else:
                 sql_for_create = '''
                 --{0}.{5}
@@ -123,16 +123,17 @@ class create_for_bigquery(object):
                 as
                 select {2},
                 {4}
-                from {6} 
+                from {1} 
                 where event_name = '{5}'
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name,self.table)
+                '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name)
         return re.sub('    ','',sql_for_create)
 
     def raw_data_insert_table(self,df):
         table_column,event_name = self.table_column(df)
         # print(table_column)
         columns_name = ','.join(re.findall('\) as (\w*)',table_column))
+        base_fields_second_pop = self._pop_prefix(self.base_fields_second)
         # print(columns_name)
         if event_name in self.fliter_event_name:
             sql_for_insert = ''
@@ -153,14 +154,14 @@ class create_for_bigquery(object):
                 insert
                 ({8},
                 {7},
-                {4})
+                {9})
                 values
                 ({8},
                 {7},
-                {4})
+                {9})
                 ;
                 '''.format(self.project,self.table,self.base_fields_first,table_column,
-                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function)
+                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function,base_fields_second_pop)
             else:
                 sql_for_insert = '''
                 --{0}.{5}
@@ -175,13 +176,13 @@ class create_for_bigquery(object):
                 when not matched then
                 insert
                 ({8},
-                {4})
+                {9})
                 values
                 ({8},
-                {4})
+                {9})
                 ;
                 '''.format(self.project,self.table,self.base_fields_first,table_column,
-                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function)
+                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function,base_fields_second_pop)
         return re.sub('    ','',sql_for_insert)
 
     def report_create_table(self,df):
