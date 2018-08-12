@@ -23,21 +23,21 @@ class TestDict(unittest.TestCase):
         print(table_column)
         return table_column
 
+    @unittest.skip('skip')
+    def test_pop_prefix(self):
+        columns = 'app_info.id,app_info.version,geo.city,device.mobile_brand_name,device.mobile_model_name,device.language'
+        columns = self.c._pop_prefix(columns)
+        print(columns)
+
     def test_report_create_table(self):
         columns_name = self.c.report_create_table(self.df)
         print(columns_name)
-
-    def test_pop_prefix(self):
-        columns = 'app_info.id,app_info.version,geo.city,device.mobile_brand_name,device.mobile_model_name,device.language'
-        columns = self.c.pop_prefix(columns)
-        print(columns)
-
 
 if __name__ == '__main__':
     
     # unittest.main()
 
     suite = unittest.TestSuite()
-    suite.addTest(TestDict('test_pop_prefix'))
+    suite.addTest(TestDict('test_report_create_table'))
     runner = unittest.TextTestRunner()
     runner.run(suite)

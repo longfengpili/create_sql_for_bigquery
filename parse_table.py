@@ -189,9 +189,9 @@ class create_for_bigquery(object):
 
     def report_create_table(self,df):
         columns_from_unnest,event_name = self.columns_from_unnest(df)
-        # print(columns_from_unnest)
         columns_name = ','.join(re.findall('\) as (\w*)',columns_from_unnest))
         columns_name = ','.join([self.base_fields_first_no_function,columns_name,self.base_fields_second])
+        columns_name = self._pop_prefix(columns_name)
 
         return columns_name
 
