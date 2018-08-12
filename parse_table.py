@@ -66,40 +66,38 @@ class create_for_bigquery(object):
 
         return table_column_sorted,event_name
     
-    def key_value(self,key,value_type,target_type='string'):
+    def key_from_unnest(self,key,value_type,target_type='string'):
         if key in self.change_column_type.keys():
             target_type = self.change_column_type[key]
-        # else:
-        #     change_target_type = target_type
 
         value = "(select cast(value.{1} as {3}) from unnest(event_params) where key = '{0}') as {2}".format(
                 key,value_type,self._modify_column(key),target_type)
         return value
 
-    def table_column(self,df):
-        table_column_info,event_name = self.sort_column(df)
+    def columns_from_unnest(self,df):
+        table_column_sorted,event_name = self.sort_column(df)
         select_list = []
-        for i in table_column_info:
+        for i in table_column_sorted:
             # print(i)
-            select_list.append(self.key_value(i[0],i[1]))
-        table_column = ",\n".join(select_list)
+            select_list.append(self.key_from_unnest(i[0],i[1]))
+        columns_from_unnest = ",\n".join(select_list)
         
-        column_l = re.findall(r'\) as (\w*)',table_column)
+        column_l = re.findall(r'\) as (\w*)',columns_from_unnest)
         for i in column_l:
             if column_l.count(i) > 1:
                 for j in range(column_l.count(i)):
-                    table_column = re.sub('\) as {}(?![0-9_])'.format(i),lambda i:i.group(0)+'_{}'.format(j),table_column,1)
+                    columns_from_unnest = re.sub('\) as {}(?![0-9_])'.format(i),lambda i:i.group(0)+'_{}'.format(j),columns_from_unnest,1)
                     
-        return table_column,event_name
+        return columns_from_unnest,event_name
 
     def raw_data_create_table(self,df):
-        table_column,event_name = self.table_column(df)
+        columns_from_unnest,event_name = self.columns_from_unnest(df)
         # print(event_name)
-        # print(table_column)
+        # print(columns_from_unnest)
         if event_name in self.fliter_event_name:
             sql_for_create = ''
         else:
-            if table_column != '':            
+            if columns_from_unnest != '':            
                 sql_for_create = '''
                 --{0}.{5}
                 create table `word-view.raw_data_{0}.{5}`
@@ -112,7 +110,7 @@ class create_for_bigquery(object):
                 from {1} 
                 where event_name = '{5}'
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,table_column,
+                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,
                             self.base_fields_second,event_name)
             else:
                 sql_for_create = '''
@@ -126,19 +124,19 @@ class create_for_bigquery(object):
                 from {1} 
                 where event_name = '{5}'
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,table_column,self.base_fields_second,event_name)
+                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,self.base_fields_second,event_name)
         return re.sub('    ','',sql_for_create)
 
     def raw_data_insert_table(self,df):
-        table_column,event_name = self.table_column(df)
-        # print(table_column)
-        columns_name = ','.join(re.findall('\) as (\w*)',table_column))
+        columns_from_unnest,event_name = self.columns_from_unnest(df)
+        # print(columns_from_unnest)
+        columns_name = ','.join(re.findall('\) as (\w*)',columns_from_unnest))
         base_fields_second_pop = self._pop_prefix(self.base_fields_second)
         # print(columns_name)
         if event_name in self.fliter_event_name:
             sql_for_insert = ''
         else:
-            if table_column != '':            
+            if columns_from_unnest != '':            
                 sql_for_insert = '''
                 --{0}.{5}
                 merge `word-view.raw_data_{0}.{5}` T
@@ -160,7 +158,7 @@ class create_for_bigquery(object):
                 {7},
                 {9})
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,table_column,
+                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,
                             self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function,base_fields_second_pop)
             else:
                 sql_for_insert = '''
@@ -181,14 +179,14 @@ class create_for_bigquery(object):
                 ({8},
                 {9})
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,table_column,
+                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,
                             self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function,base_fields_second_pop)
         return re.sub('    ','',sql_for_insert)
 
     def report_create_table(self,df):
-        table_column,event_name = self.table_column(df)
-        # print(table_column)
-        columns_name = ','.join(re.findall('\) as (\w*)',table_column))
+        columns_from_unnest,event_name = self.columns_from_unnest(df)
+        # print(columns_from_unnest)
+        columns_name = ','.join(re.findall('\) as (\w*)',columns_from_unnest))
         columns_name = ','.join([self.base_fields_first_no_function,columns_name,self.base_fields_second])
 
         return columns_name
