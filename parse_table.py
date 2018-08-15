@@ -418,7 +418,10 @@ class create_for_bigquery(object):
                 if isinstance(k,dict):
                     agg_column = self.agg_func(k)
                     other_agg.append(agg_column)
-                    other_agg_as.append(k.get('agg_column'))
+                    if k.get('agg_column'):
+                        other_agg_as.append(k.get('agg_column'))
+                    else:
+                        other_agg_as.append(k.get('column'))
 
             other_agg = ','.join(other_agg)
             func_column = ['{}_users'.format(event_name),'{}_times'.format(event_name)] + other_agg_as
