@@ -12,8 +12,9 @@ non_in_column = []
 class create_for_bigquery(object):
 
     def __init__(self):
-        self.project = config.project_name
-        self.table = config.table_name
+        self.project_name = config.project_name
+        self.table_name = config.table_name
+        self.schema_name = config.schema_name
         self.column_fixed = config.column_fixed
         self.event_column_sort = config.event_column_sort
         self.change_column_type = config.change_column_type
@@ -22,9 +23,17 @@ class create_for_bigquery(object):
         self.base_fields_first = config.base_fields_first
         self.base_fields_first_no_function = config.base_fields_first_no_function
         self.base_fields_second = config.base_fields_second
+        self.report_columns_fixed = config.report_columns_fixed
+        self.report_first_value_list = config.report_first_value_list
+        self.report_columns_pop = config.report_columns_pop
+        self.report_agg_columns_pop = config.report_agg_columns_pop
+        self.report_events = config.report_events
+
         self.filepath = config.filepath
-        self.createpath = config.createpath
-        self.insertpath = config.insertpath
+        self.raw_createpath = config.raw_createpath
+        self.raw_insertpath = config.raw_insertpath
+        self.report_createtpath = config.report_createtpath
+        self.report_insertpath = config.report_insertpath
 
     def _modify_column(self, column_name):
         pattern = "[A-Z]"
@@ -70,6 +79,16 @@ class create_for_bigquery(object):
 
         return table_column_sorted,event_name
     
+    def first_value_sql(self,columns):
+        '''columns is list'''
+        first_value = []
+        for i in columns:
+            first_value_i = "first_value({0} ignore nulls) over (partition by user_pseudo_id,id,platform,event_date order by ts " \
+            "rows between unbounded preceding and unbounded following) as {0}".format(i)
+            first_value.append(first_value_i)
+        first_value = ',\n'.join(first_value)
+        return first_value
+
     def key_from_unnest(self,key,value_type,target_type='string'):
         if key in self.change_column_type.keys():
             target_type = self.change_column_type[key]
@@ -77,6 +96,15 @@ class create_for_bigquery(object):
         value = "(select cast(value.{1} as {3}) from unnest(event_params) where key = '{0}') as {2}".format(
                 key, value_type, self._modify_column(key), target_type)
         return value
+
+    def merge_on(self,agg_columns,comp='=',join_str='and'):
+        merge_on = []
+        for i in agg_columns:
+            agg_column_on = 'T.{0} {1} S.{0}'.format(i,comp)
+            merge_on.append(agg_column_on)
+        
+        merge_on = ' {} '.format(join_str).join(merge_on)
+        return merge_on            
 
     def columns_from_unnest(self,df):
         table_column_sorted,event_name = self.sort_column(df)
@@ -94,6 +122,32 @@ class create_for_bigquery(object):
                     
         return columns_from_unnest,event_name
 
+    def agg_func(self,dict):
+        column = dict.get('column')
+        agg_column = dict.get('agg_column')
+        distinct = dict.get('distinct')
+        aggfunc = dict.get('aggfunc')
+        dtype = dict.get('dtype')
+
+        if not aggfunc:
+            aggfunc = 'sum'
+        
+        if not agg_column:
+            agg_column = column
+
+        if dtype:
+            column = 'cast({} as {})'.format(column,dtype)
+        
+        if distinct:
+            agg_func = '{0}(distinct {1}) as {2}'.format(aggfunc,column,agg_column)
+        else:
+            agg_func = '{0}({1}) as {2}'.format(aggfunc,column,agg_column)
+
+            
+
+        return agg_func
+
+
     def raw_data_create_table(self,df):
         columns_from_unnest,event_name = self.columns_from_unnest(df)
         # print(event_name)
@@ -103,10 +157,10 @@ class create_for_bigquery(object):
         else:
             if columns_from_unnest != '':            
                 sql_for_create = '''
-                --{0}.{5}
-                create table `word-view.raw_data_{0}.{5}`
+                --{6}.{5}
+                create table `{0}.raw_data_{6}.{5}`
                 partition by event_date
-                cluster by user_pseudo_id,id,platform,city
+                cluster by user_pseudo_id,id,platform,country
                 as
                 select {2},
                 {3},
@@ -114,21 +168,21 @@ class create_for_bigquery(object):
                 from {1} 
                 where event_name = '{5}'
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,
-                            self.base_fields_second,event_name)
+                '''.format(self.project_name,self.table_name,self.base_fields_first,columns_from_unnest,
+                            self.base_fields_second,event_name,self.schema_name)
             else:
                 sql_for_create = '''
-                --{0}.{5}
-                create `word-view.raw_data_{0}.{5}`
+                --{6}.{5}
+                create `{0}.raw_data_{6}.{5}`
                 partition by event_date
-                cluster by user_pseudo_id,id,platform,city
+                cluster by user_pseudo_id,id,platform,country
                 as
                 select {2},
                 {4}
                 from {1} 
                 where event_name = '{5}'
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,self.base_fields_second,event_name)
+                '''.format(self.project_name,self.table_name,self.base_fields_first,columns_from_unnest,self.base_fields_second,event_name,self.schema_name)
         return re.sub('    ','',sql_for_create)
 
     def raw_data_insert_table(self,df):
@@ -142,8 +196,8 @@ class create_for_bigquery(object):
         else:
             if columns_from_unnest != '':            
                 sql_for_insert = '''
-                --{0}.{5}
-                merge `word-view.raw_data_{0}.{5}` T
+                --{10}.{5}
+                merge `{0}.raw_data_{10}.{5}` T
                 using
                 (select {2},
                 {3},
@@ -162,12 +216,12 @@ class create_for_bigquery(object):
                 {7},
                 {9})
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,
-                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function,base_fields_second_pop)
+                '''.format(self.project_name,self.table_name,self.base_fields_first,columns_from_unnest,
+                            self.base_fields_second,event_name,self.table_name,columns_name,self.base_fields_first_no_function,base_fields_second_pop,self.schema_name)
             else:
                 sql_for_insert = '''
-                --{0}.{5}
-                merge `word-view.raw_data_{0}.{5}` T
+                --{10}.{5}
+                merge `{0}.raw_data_{10}.{5}` T
                 using
                 (select {2},
                 {4}
@@ -183,26 +237,243 @@ class create_for_bigquery(object):
                 ({8},
                 {9})
                 ;
-                '''.format(self.project,self.table,self.base_fields_first,columns_from_unnest,
-                            self.base_fields_second,event_name,self.table,columns_name,self.base_fields_first_no_function,base_fields_second_pop)
+                '''.format(self.project_name,self.table_name,self.base_fields_first,columns_from_unnest,
+                            self.base_fields_second,event_name,self.table_name,columns_name,self.base_fields_first_no_function,base_fields_second_pop,self.schema_name)
         return re.sub('    ','',sql_for_insert)
 
     def report_create_table(self,df):
+        
+        sql_for_report = ''
+
         columns_from_unnest,event_name = self.columns_from_unnest(df)
-        columns_name = ','.join(re.findall('\) as (\w*)',columns_from_unnest))
-        columns_name = ','.join([self.base_fields_first_no_function,columns_name,self.base_fields_second])
-        columns_name = self._pop_prefix(columns_name)
+        columns_name = re.findall('\) as (\w*)',columns_from_unnest)
 
-        return columns_name
+        report_first_value_list = []
+        for c in self.report_first_value_list:
+            if c not in report_first_value_list:
+                report_first_value_list.append(c)
 
+            for m in columns_name:
+                if m.startswith(c):
+                    report_first_value_list.append(m)
+                    columns_name.pop(columns_name.index(m))
+                    try:
+                        report_first_value_list.pop(report_first_value_list.index(c))
+                    except:
+                        pass
+
+        for i in self.report_columns_pop:
+            i = self._modify_column(i)
+            try:
+              columns_name.pop(columns_name.index(i))
+            except:
+                pass
+        if event_name in self.report_events.keys():
+            if self.report_events[event_name].get('pop'):
+                for i in self.report_events[event_name].get('pop'):
+                    i = self._modify_column(i)
+                try:
+                    columns_name.pop(columns_name.index(i))
+                except:
+                    pass
+
+        columns_all = self.report_columns_fixed + columns_name + report_first_value_list
+        agg_columns_l = [i for i in columns_all if i not in self.report_agg_columns_pop]
+        columns_num = ','.join([str(i + 1) for i in range(len(agg_columns_l))])
+        agg_columns = ','.join([i for i in columns_all if i not in self.report_agg_columns_pop])
+
+        columns_name_str = ','.join(columns_name)
+        columns_name_str = self._pop_prefix(columns_name_str)
+
+        first_values = self.first_value_sql(report_first_value_list)
+        report_columns_fixed = ','.join(self.report_columns_fixed)
+        
+        if event_name in self.report_events.keys():
+            # print(self.report_events[event_name].values())
+            other_agg = []
+            for k in self.report_events[event_name].values():
+                if isinstance(k,dict):
+                    agg_column = self.agg_func(k)
+                    other_agg.append(agg_column)
+
+            other_agg = ','.join(other_agg)
+
+            if other_agg:
+                sql_for_report = '''
+                    --{2}.{3}
+                    create table `{0}.report_{2}.{3}`
+                    partition by event_date
+                    cluster by id,platform,country,group_id
+                    as
+                    with report_{3} as
+                    (with temp_{3} as
+                    (select {4},
+                    {5},
+                    {6}
+                    from {1} 
+                    where event_name = '{3}')
+                    select {7},
+                    {8},
+                    {9}
+                    from temp_{3})
+                    select {12},
+                    count(distinct user_pseudo_id) {3}_users,count(user_pseudo_id) {3}_times,{11}
+                    from report_{3}
+                    group by {10};
+                '''.format(self.project_name,self.table_name,self.schema_name,event_name,self.base_fields_first,columns_from_unnest,self.base_fields_second,
+                            report_columns_fixed,first_values,columns_name_str,columns_num,other_agg,agg_columns)
+            else:
+                sql_for_report = '''
+                    --{2}.{3}
+                    create table `{0}.report_{2}.{3}`
+                    partition by event_date
+                    cluster by id,platform,country,group_id
+                    as
+                    with report_{3} as
+                    (with temp_{3} as
+                    (select {4},
+                    {5},
+                    {6}
+                    from {1} 
+                    where event_name = '{3}')
+                    select {7},
+                    {8},
+                    {9}
+                    from temp_{3})
+                    select {12},
+                    count(distinct user_pseudo_id) {3}_users,count(user_pseudo_id) {3}_times
+                    from report_{3}
+                    group by {10};
+                '''.format(self.project_name,self.table_name,self.schema_name,event_name,self.base_fields_first,columns_from_unnest,self.base_fields_second,
+                            report_columns_fixed,first_values,columns_name_str,columns_num,other_agg,agg_columns)
+
+        return re.sub('  ','',sql_for_report)
+
+    def report_insert_table(self,df):
+        
+        sql_for_report = ''
+
+        columns_from_unnest,event_name = self.columns_from_unnest(df)
+        columns_name = re.findall('\) as (\w*)',columns_from_unnest)
+
+        report_first_value_list = []
+        for c in self.report_first_value_list:
+            if c not in report_first_value_list:
+                report_first_value_list.append(c)
+
+            for m in columns_name:
+                if m.startswith(c):
+                    report_first_value_list.append(m)
+                    columns_name.pop(columns_name.index(m))
+                    try:
+                        report_first_value_list.pop(report_first_value_list.index(c))
+                    except:
+                        pass
+
+        for i in self.report_columns_pop:
+            i = self._modify_column(i)
+            try:
+              columns_name.pop(columns_name.index(i))
+            except:
+                pass
+        if event_name in self.report_events.keys():
+            if self.report_events[event_name].get('pop'):
+                for i in self.report_events[event_name].get('pop'):
+                    i = self._modify_column(i)
+                try:
+                    columns_name.pop(columns_name.index(i))
+                except:
+                    pass
+
+        columns_all = self.report_columns_fixed + columns_name + report_first_value_list
+        agg_columns_l = [i for i in columns_all if i not in self.report_agg_columns_pop]
+        columns_num = ','.join([str(i + 1) for i in range(len(agg_columns_l))])
+        agg_columns = ','.join([i for i in columns_all if i not in self.report_agg_columns_pop])
+
+        merge_on = self.merge_on(agg_columns_l)
+        # print(merge_on)
+
+        columns_name_str = ','.join(columns_name)
+        columns_name_str = self._pop_prefix(columns_name_str)
+
+        first_values = self.first_value_sql(report_first_value_list)
+        report_columns_fixed = ','.join(self.report_columns_fixed)
+        
+        if event_name in self.report_events.keys():
+            # print(self.report_events[event_name].values())
+            other_agg = []
+            other_agg_as = []
+            for k in self.report_events[event_name].values():
+                if isinstance(k,dict):
+                    agg_column = self.agg_func(k)
+                    other_agg.append(agg_column)
+                    other_agg_as.append(k.get('agg_column'))
+
+            other_agg = ','.join(other_agg)
+            func_column = ['{}_users'.format(event_name),'{}_times'.format(event_name)] + other_agg_as
+            func_column = [i for i in func_column if i is not None]
+            # func_column_comp = self.merge_on(func_column,comp='!=',join_str='or')
+            # func_column_update = self.merge_on(func_column,join_str=',')
+
+            # print(func_column_comp)
+
+            if other_agg:
+                sql_for_report = '''
+                    --{2}.{3}
+                    delete `{0}.report_{2}.{3}` where event_date = {0};
+
+                    insert into `{0}.report_{2}.{3}`
+                    ({12},
+                    {13})
+                    with report_{3} as
+                    (with temp_{3} as
+                    (select {4},
+                    {5},
+                    {6}
+                    from {1} 
+                    where event_name = '{3}')
+                    select {7},
+                    {8},
+                    {9}
+                    from temp_{3})
+                    select {12},
+                    count(distinct user_pseudo_id) {3}_users,count(user_pseudo_id) {3}_times,{11}
+                    from report_{3}
+                    group by {10};
+                '''.format(self.project_name,self.table_name,self.schema_name,event_name,self.base_fields_first,columns_from_unnest,self.base_fields_second,
+                            report_columns_fixed,first_values,columns_name_str,columns_num,other_agg,agg_columns,(','.join(func_column)))
+            else:
+                sql_for_report = '''
+                    --{2}.{3}
+                    delete `{0}.report_{2}.{3}` where event_date = {0};
+
+                    insert into `{0}.report_{2}.{3}`
+                    ({12},
+                    {13})
+                    with report_{3} as
+                    (with temp_{3} as
+                    (select {4},
+                    {5},
+                    {6}
+                    from {1} 
+                    where event_name = '{3}')
+                    select {7},
+                    {8},
+                    {9}
+                    from temp_{3})
+                    select {12},
+                    count(distinct user_pseudo_id) {3}_users,count(user_pseudo_id) {3}_times
+                    from report_{3}
+                    group by {10};
+                '''.format(self.project_name,self.table_name,self.schema_name,event_name,self.base_fields_first,columns_from_unnest,self.base_fields_second,
+                            report_columns_fixed,first_values,columns_name_str,columns_num,other_agg,agg_columns,(','.join(func_column)))
+
+        return re.sub('  ','',sql_for_report)
 
 if __name__ == '__main__':
 
     c = create_for_bigquery()
-    filepath = c.filepath
-    createpath = c.createpath
-    insertpath = c.insertpath
-    f = open(filepath, 'r')
+    f = open(c.filepath, 'r')
     data = pd.read_csv(f, index_col=['event_name'])
     f.close()
 
@@ -212,11 +483,17 @@ if __name__ == '__main__':
     for i in data.index.unique().values:
         result = data.loc[[i]].copy()
         # print(result)
-        with open(createpath, 'a', encoding='utf-8') as f:
+        with open(c.raw_createpath, 'a', encoding='utf-8') as f:
             f.write(c.raw_data_create_table(result))
 
-        with open(insertpath, 'a', encoding='utf-8') as f:
+        with open(c.raw_insertpath, 'a', encoding='utf-8') as f:
             f.write(c.raw_data_insert_table(result))
+        
+        with open(c.report_createtpath, 'a', encoding='utf-8') as f:
+            f.write(c.report_create_table(result))
 
-    with open(createpath, 'a', encoding='utf-8') as f:
+        with open(c.report_insertpath, 'a', encoding='utf-8') as f:
+            f.write(c.report_insert_table(result))
+
+    with open(c.raw_createpath, 'a', encoding='utf-8') as f:
             f.write('\n出现额外的列名{}'.format(non_in_column))
