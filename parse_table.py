@@ -248,11 +248,13 @@ class create_for_bigquery(object):
         columns_from_unnest,event_name = self.columns_from_unnest(df)
         columns_name = re.findall('\) as (\w*)',columns_from_unnest)
 
+        # print(event_name)
+        # print(columns_name)
+
         report_first_value_list = []
         for c in self.report_first_value_list:
             if c not in report_first_value_list:
                 report_first_value_list.append(c)
-
             for m in columns_name:
                 if m.startswith(c):
                     report_first_value_list.append(m)
@@ -261,6 +263,10 @@ class create_for_bigquery(object):
                         report_first_value_list.pop(report_first_value_list.index(c))
                     except:
                         pass
+        # print(columns_name)                
+        columns_name_str = ','.join(columns_name)
+        columns_name_str = self._pop_prefix(columns_name_str)
+        # print(columns_name_str)
 
         for i in self.report_columns_pop:
             i = self._modify_column(i)
@@ -272,18 +278,17 @@ class create_for_bigquery(object):
             if self.report_events[event_name].get('pop'):
                 for i in self.report_events[event_name].get('pop'):
                     i = self._modify_column(i)
-                try:
-                    columns_name.pop(columns_name.index(i))
-                except:
-                    pass
+                    try:
+                        columns_name.pop(columns_name.index(i))
+                    except:
+                        pass
+        # print(columns_name)
 
         columns_all = self.report_columns_fixed + columns_name + report_first_value_list
         agg_columns_l = [i for i in columns_all if i not in self.report_agg_columns_pop]
         columns_num = ','.join([str(i + 1) for i in range(len(agg_columns_l))])
         agg_columns = ','.join([i for i in columns_all if i not in self.report_agg_columns_pop])
-
-        columns_name_str = ','.join(columns_name)
-        columns_name_str = self._pop_prefix(columns_name_str)
+        # print(agg_columns)
 
         first_values = self.first_value_sql(report_first_value_list)
         report_columns_fixed = ','.join(self.report_columns_fixed)
@@ -291,12 +296,16 @@ class create_for_bigquery(object):
         if event_name in self.report_events.keys():
             # print(self.report_events[event_name].values())
             other_agg = []
+            other_agg_as = []
             for k in self.report_events[event_name].values():
                 if isinstance(k,dict):
                     agg_column = self.agg_func(k)
                     other_agg.append(agg_column)
+                    other_agg_as.append(k.get('agg_column'))
 
             other_agg = ','.join(other_agg)
+            func_column = ['{}_users'.format(event_name),'{}_times'.format(event_name)] + other_agg_as
+            func_column = [i for i in func_column if i is not None]
 
             if other_agg:
                 sql_for_report = '''
@@ -356,11 +365,13 @@ class create_for_bigquery(object):
         columns_from_unnest,event_name = self.columns_from_unnest(df)
         columns_name = re.findall('\) as (\w*)',columns_from_unnest)
 
+        # print(event_name)
+        # print(columns_name)
+
         report_first_value_list = []
         for c in self.report_first_value_list:
             if c not in report_first_value_list:
                 report_first_value_list.append(c)
-
             for m in columns_name:
                 if m.startswith(c):
                     report_first_value_list.append(m)
@@ -369,6 +380,10 @@ class create_for_bigquery(object):
                         report_first_value_list.pop(report_first_value_list.index(c))
                     except:
                         pass
+        # print(columns_name)                
+        columns_name_str = ','.join(columns_name)
+        columns_name_str = self._pop_prefix(columns_name_str)
+        # print(columns_name_str)
 
         for i in self.report_columns_pop:
             i = self._modify_column(i)
@@ -380,21 +395,17 @@ class create_for_bigquery(object):
             if self.report_events[event_name].get('pop'):
                 for i in self.report_events[event_name].get('pop'):
                     i = self._modify_column(i)
-                try:
-                    columns_name.pop(columns_name.index(i))
-                except:
-                    pass
+                    try:
+                        columns_name.pop(columns_name.index(i))
+                    except:
+                        pass
+        # print(columns_name)
 
         columns_all = self.report_columns_fixed + columns_name + report_first_value_list
         agg_columns_l = [i for i in columns_all if i not in self.report_agg_columns_pop]
         columns_num = ','.join([str(i + 1) for i in range(len(agg_columns_l))])
         agg_columns = ','.join([i for i in columns_all if i not in self.report_agg_columns_pop])
-
-        merge_on = self.merge_on(agg_columns_l)
-        # print(merge_on)
-
-        columns_name_str = ','.join(columns_name)
-        columns_name_str = self._pop_prefix(columns_name_str)
+        # print(agg_columns)
 
         first_values = self.first_value_sql(report_first_value_list)
         report_columns_fixed = ','.join(self.report_columns_fixed)
@@ -412,10 +423,6 @@ class create_for_bigquery(object):
             other_agg = ','.join(other_agg)
             func_column = ['{}_users'.format(event_name),'{}_times'.format(event_name)] + other_agg_as
             func_column = [i for i in func_column if i is not None]
-            # func_column_comp = self.merge_on(func_column,comp='!=',join_str='or')
-            # func_column_update = self.merge_on(func_column,join_str=',')
-
-            # print(func_column_comp)
 
             if other_agg:
                 sql_for_report = '''
@@ -483,11 +490,11 @@ if __name__ == '__main__':
     for i in data.index.unique().values:
         result = data.loc[[i]].copy()
         # print(result)
-        with open(c.raw_createpath, 'a', encoding='utf-8') as f:
-            f.write(c.raw_data_create_table(result))
+        # with open(c.raw_createpath, 'a', encoding='utf-8') as f:
+        #     f.write(c.raw_data_create_table(result))
 
-        with open(c.raw_insertpath, 'a', encoding='utf-8') as f:
-            f.write(c.raw_data_insert_table(result))
+        # with open(c.raw_insertpath, 'a', encoding='utf-8') as f:
+        #     f.write(c.raw_data_insert_table(result))
         
         with open(c.report_createtpath, 'a', encoding='utf-8') as f:
             f.write(c.report_create_table(result))
