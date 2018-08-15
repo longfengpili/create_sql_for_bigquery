@@ -493,11 +493,11 @@ if __name__ == '__main__':
     for i in data.index.unique().values:
         result = data.loc[[i]].copy()
         # print(result)
-        # with open(c.raw_createpath, 'a', encoding='utf-8') as f:
-        #     f.write(c.raw_data_create_table(result))
+        with open(c.raw_createpath, 'a', encoding='utf-8') as f:
+            f.write(c.raw_data_create_table(result))
 
-        # with open(c.raw_insertpath, 'a', encoding='utf-8') as f:
-        #     f.write(c.raw_data_insert_table(result))
+        with open(c.raw_insertpath, 'a', encoding='utf-8') as f:
+            f.write(c.raw_data_insert_table(result))
         
         with open(c.report_createtpath, 'a', encoding='utf-8') as f:
             f.write(c.report_create_table(result))
