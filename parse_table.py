@@ -432,7 +432,7 @@ class create_for_bigquery(object):
             if other_agg:
                 sql_for_report = '''
                     --{2}.{3}
-                    delete `{0}.report_{2}.{3}` where event_date = {0};
+                    delete `{0}.report_{2}.{3}` where event_date = '{0}';
 
                     insert into `{0}.report_{2}.{3}`
                     ({12},
@@ -458,7 +458,7 @@ class create_for_bigquery(object):
             else:
                 sql_for_report = '''
                     --{2}.{3}
-                    delete `{0}.report_{2}.{3}` where event_date = {0};
+                    delete `{0}.report_{2}.{3}` where event_date = '{0}';
 
                     insert into `{0}.report_{2}.{3}`
                     ({12},
