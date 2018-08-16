@@ -304,7 +304,7 @@ class create_for_bigquery(object):
                     other_agg_as.append(k.get('agg_column'))
 
             other_agg = ','.join(other_agg)
-            func_column = ['{}_users'.format(event_name),'{}_times'.format(event_name)] + other_agg_as
+            func_column = ['{}_times'.format(event_name)] + other_agg_as
             func_column = [i for i in func_column if i is not None]
 
             if other_agg:
@@ -426,7 +426,7 @@ class create_for_bigquery(object):
                         other_agg_as.append(k.get('column'))
 
             other_agg = ','.join(other_agg)
-            func_column = ['{}_users'.format(event_name),'{}_times'.format(event_name)] + other_agg_as
+            func_column = ['{}_times'.format(event_name)] + other_agg_as
             func_column = [i for i in func_column if i is not None]
 
             if other_agg:
