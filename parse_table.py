@@ -326,7 +326,6 @@ class create_for_bigquery(object):
                     {9}
                     from temp_{3})
                     select {12},
-                    --count(distinct user_pseudo_id) {3}_users,
                     count(user_pseudo_id) {3}_times,{11}
                     from report_{3}
                     group by {10};
@@ -351,7 +350,6 @@ class create_for_bigquery(object):
                     {9}
                     from temp_{3})
                     select {12},
-                    --count(distinct user_pseudo_id) {3}_users,
                     count(user_pseudo_id) {3}_times
                     from report_{3}
                     group by {10};
@@ -449,7 +447,6 @@ class create_for_bigquery(object):
                     {9}
                     from temp_{3})
                     select {12},
-                    --count(distinct user_pseudo_id) {3}_users,
                     count(user_pseudo_id) {3}_times,{11}
                     from report_{3}
                     group by {10};
@@ -475,7 +472,6 @@ class create_for_bigquery(object):
                     {9}
                     from temp_{3})
                     select {12},
-                    --count(distinct user_pseudo_id) {3}_users,
                     count(user_pseudo_id) {3}_times
                     from report_{3}
                     group by {10};
