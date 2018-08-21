@@ -62,6 +62,8 @@ class create_for_bigquery(object):
                 table_column_sort[columns_sort[column]] = [column, column_type]
             elif column in self.fliter_fields:
                 pass
+            elif event_name in self.fliter_event_name:
+                pass
             elif column not in non_in_column:
                 non_in_column.append(column)
             else:
