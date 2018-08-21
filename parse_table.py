@@ -505,5 +505,10 @@ if __name__ == '__main__':
         with open(c.report_insertpath, 'a', encoding='utf-8') as f:
             f.write(c.report_insert_table(result))
 
-    with open(c.raw_createpath, 'a', encoding='utf-8') as f:
-            f.write('\n出现额外的列名{}'.format(non_in_column))
+    with open(c.raw_createpath, 'r', encoding='utf-8') as f:
+        lines = f.read()
+
+    with open(c.raw_createpath, 'w', encoding='utf-8') as f:
+        f.write('\n出现额外的列名{}\n'.format(non_in_column))
+        f.write(lines)
+
