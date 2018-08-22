@@ -4,7 +4,7 @@ import sys
 import re
 
 sys.path.append('..')
-import config_for_bigquery as config
+import config_for_bigquery_wordview as config
 
 non_in_column = []
 
