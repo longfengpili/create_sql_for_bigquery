@@ -25,7 +25,6 @@ class create_for_bigquery(object):
         self.base_fields_second = config.base_fields_second
         self.report_columns_fixed = config.report_columns_fixed
         self.report_first_value_list = config.report_first_value_list
-        self.report_columns_pop = config.report_columns_pop
         self.report_agg_columns_pop = config.report_agg_columns_pop
         self.report_events = config.report_events
 
@@ -270,7 +269,8 @@ class create_for_bigquery(object):
         columns_name_str = self._pop_prefix(columns_name_str)
         # print(columns_name_str)
 
-        for i in self.report_columns_pop:
+        report_columns_pop = self.report_columns_fixed + self.report_first_value_list
+        for i in report_columns_pop:
             i = self._modify_column(i)
             try:
               columns_name.pop(columns_name.index(i))
@@ -387,7 +387,8 @@ class create_for_bigquery(object):
         columns_name_str = self._pop_prefix(columns_name_str)
         # print(columns_name_str)
 
-        for i in self.report_columns_pop:
+        report_columns_pop = self.report_columns_fixed + self.report_first_value_list
+        for i in report_columns_pop:
             i = self._modify_column(i)
             try:
               columns_name.pop(columns_name.index(i))
